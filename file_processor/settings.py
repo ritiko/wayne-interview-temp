@@ -13,6 +13,13 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
+import environ
+
+# Build paths inside the project
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,10 +29,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-2d*js&hyi!@@%5-%1j02f0wa-##5+sytyds)5^87(c@ixy9e5r'
+SECRET_KEY = env('SECRET_KEY', default='secret_key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=True)
 
 ALLOWED_HOSTS = []
 
@@ -40,13 +47,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-        # Installed django apps
+    # Installed django apps
     'users',
     'files',
     
     # Installed Packages
     'rest_framework',
-    'rest_framework_simplejwt' 
+    'rest_framework_simplejwt' ,
+    'django_celery_results',
 ]
 
 MIDDLEWARE = [
@@ -143,5 +151,20 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
-  }
+}
 
+CELERY_BROKER_URL = 'amqp://localhost'
+
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+
+
+# Environment configurations
+EMAIL_BACKEND = env('EMAIL_BACKEND', default="your_default_email_backend")
+EMAIL_HOST = env('EMAIL_HOST', default="your_default_email_host")
+EMAIL_PORT = env('EMAIL_PORT', cast=int, default=587)
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default="your_default_email_user")
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default="your_default_email_password")
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default="your_default_from_email")
