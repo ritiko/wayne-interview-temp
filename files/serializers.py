@@ -21,3 +21,9 @@ class FileStatusSerializer(serializers.ModelSerializer):
         model = FileUpload
         fields = ['fileId', 'status', 'created_at', 'file']
         read_only_fields = fields
+
+
+class FileListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FileUpload
+        fields = ['fileId', 'created_at']
