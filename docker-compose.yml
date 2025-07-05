@@ -1,0 +1,79 @@
+name: csv-processor
+
+services:
+  app:
+    build: .
+    image: csv-app-image
+    container_name: csv-app-container
+    command: /app/entrypoint.sh
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./media:/app/media
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  postgres:
+    image: postgres
+    container_name: csv-postgres-container
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: "redis:alpine"
+    container_name: csv-redis-container
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: csv-rabbitmq-container
+    ports:
+      - "5672:5672"   # Broker port
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  celery:
+    image: csv-app-image
+    container_name: csv-celery-container
+    command: celery -A file_processor worker -E -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - app
+      - postgres
+      - rabbitmq
+
+  flower:
+    image: csv-app-image
+    container_name: csv-flower-container
+    command: celery -A file_processor flower
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+volumes:
+  postgres_data:
+  redis_data:
