@@ -10,10 +10,11 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory
 WORKDIR /app
 
-# Install system dependencies
+#Fix: use netcat-openbsd instead of virtual 'netcat'
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
+    netcat-openbsd \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
@@ -21,7 +22,7 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir --default-timeout=100 -r requirements.txt
 
-# Copy the Django project into the container
+# Copy project files
 COPY . .
 
 # Create media and uploads folders if they don't exist and set permissions
@@ -31,14 +32,15 @@ RUN mkdir -p /app/media/uploads && \
 # Set full permissions for app
 RUN chown -R celeryuser:celerygroup /app
 
+# Copy entrypoint and wait-for-postgres scripts
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Switch to non-root user
 USER celeryuser
 
-# Collect static files (make sure STATIC_ROOT is set in settings.py)
-RUN python manage.py collectstatic --noinput
-
-# Expose the default Django port
+# Expose the Django app port
 EXPOSE 8000
 
-# Run the Django server
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Set entrypoint to the custom script
+ENTRYPOINT ["/entrypoint.sh"]
