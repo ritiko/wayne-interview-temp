@@ -30,7 +30,7 @@ The system is deployed locally on **Kubernetes** via **Minikube**.
   * [Check File Status](#check-file-status)
   * [View My Files](#view-my-files)
 * [Run Tests Inside Kubernetes](#run-tests-inside-kubernetes)
-* [View Live Celery Task Logs](#view-live-celery-task-logs)
+* [View Live Celery Task and Celery Beat scheduler Logs](#view-live-celery-task-and-celery-beat-scheduler-logs)
 * [Troubleshooting](#troubleshooting)
 * [Architecture Overview](#architecture-overview)
 
