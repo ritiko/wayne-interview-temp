@@ -2,6 +2,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.cache import cache
 from unittest.mock import patch
 from users.models import User
 from files.models import FileUpload
@@ -125,4 +126,53 @@ class FileUploadViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn("File not found", str(response.data))
+        
+
+class FileUploadListViewTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="listuser",
+            email="listuser@example.com",
+            password="StrongPass123!"
+        )
+        self.url = reverse("user-file-list")
+        self.client.force_authenticate(user=self.user)
+
+    def tearDown(self):
+        cache.clear()
+        for upload in FileUpload.objects.all():
+            if upload.file and os.path.exists(upload.file.path):
+                os.remove(upload.file.path)
+
+    def test_list_files_without_cache(self):
+        file1 = FileUpload.objects.create(user=self.user)
+        file2 = FileUpload.objects.create(user=self.user)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        returned_ids = [file["fileId"] for file in response.data]
+        self.assertIn(str(file1.fileId), returned_ids)
+        self.assertIn(str(file2.fileId), returned_ids)
+
+    def test_list_files_with_cache(self):
+        file1 = FileUpload.objects.create(user=self.user)
+        file2 = FileUpload.objects.create(user=self.user)
+
+        # Set cache manually
+        cache_key = f"user_file_ids:{self.user.id}"
+        cache.set(cache_key, [str(file1.fileId)], timeout=120)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["fileId"], str(file1.fileId))
+
+    def test_list_files_unauthenticated(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
