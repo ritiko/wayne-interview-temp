@@ -1,15 +1,16 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
+from django.utils import timezone
+from datetime import timedelta
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
 from unittest.mock import patch
 from users.models import User
 from files.models import FileUpload
-from files.tasks import process_csv_file
+from files.tasks import process_csv_file, retry_stuck_files
 import tempfile
-import os
- 
+import os 
 
 
 class FileUploadViewTests(APITestCase):
@@ -90,7 +91,43 @@ class FileUploadViewTests(APITestCase):
         self.assertEqual(kwargs['subject'], "Your file has been processed")
         self.assertIn(self.user.email, kwargs['recipient_list'])
         self.assertIn("Your uploaded CSV file", kwargs['message'])
+
+    @patch("files.tasks.process_csv_file.delay")
+    def test_retry_stuck_files_triggers_for_old_processing_files(self, mock_process_delay):
+        # Create a stuck file in "processing" state older than 30 minutes
+        stuck_time = timezone.now() - timedelta(minutes=31)
+        stuck_file = FileUpload.objects.create(
+            user=self.user,
+            file=SimpleUploadedFile("stuck.csv", b"col1,col2", content_type="text/csv"),
+            status="processing",
+        )
         
+        FileUpload.objects.filter(pk=stuck_file.pk).update(updated_at=stuck_time)
+
+        # Call the periodic retry task directly
+        retry_stuck_files()
+
+        # Assert: Check if task was retried
+        mock_process_delay.assert_called_once_with(str(stuck_file.fileId))
+
+    @patch("files.tasks.process_csv_file.delay")
+    def test_retry_stuck_files_ignores_recent_processing_files(self, mock_process_delay):
+        # Create a file still "processing" but updated recently
+        recent_time = timezone.now() - timedelta(minutes=5)
+        FileUpload.objects.create(
+            user=self.user,
+            file=SimpleUploadedFile("recent.csv", b"col1,col2", content_type="text/csv"),
+            status="processing",
+            updated_at=recent_time
+        )
+        
+        # Call the retry task
+        retry_stuck_files()
+
+        # Should NOT retry
+        mock_process_delay.assert_not_called()
+
+     
     def test_get_file_status_success(self):
         csv_file = SimpleUploadedFile("status_test.csv", b"col1,col2\nval1,val2", content_type="text/csv")
         upload = FileUpload.objects.create(user=self.user, file=csv_file)

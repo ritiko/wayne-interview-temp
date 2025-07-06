@@ -125,6 +125,7 @@ kubectl apply -f k8s/rabbitmq.yaml
 kubectl apply -f k8s/postgres.yaml
 kubectl apply -f k8s/app.yaml
 kubectl apply -f k8s/celery.yaml
+kubectl apply -f k8s/celerybeat.yaml
 ```
 
 ---
@@ -311,7 +312,7 @@ OK
 
 ---
 
-## View Live Celery Task Logs
+## View Live Celery Task and Celery Beat scheduler Logs
 
 To stream logs from the Celery worker:
 
@@ -319,6 +320,11 @@ To stream logs from the Celery worker:
 kubectl logs -n csv-processor -l app=celery -f
 ```
 
+To stream logs from the Celery Beat Scheduler
+
+```bash
+kubectl logs -n csv-processor -l app=celery-beat -f
+```
 
 
 ## Troubleshooting

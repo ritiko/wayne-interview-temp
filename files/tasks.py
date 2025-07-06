@@ -3,8 +3,10 @@ import random
 import logging
 from celery import shared_task
 from .models import FileUpload
+from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings
+from django.utils import timezone
 
 
 
@@ -40,3 +42,19 @@ def process_csv_file(file_id):
         logger.error(f"[ERROR] FileUpload with ID {file_id} does not exist")
     except Exception as e:
         logger.error(f"[ERROR] Unexpected error while processing file {file_id}: {str(e)}")
+        
+
+@shared_task(name='retry_stuck_files')
+def retry_stuck_files():
+    stuck_threshold = timezone.now() - timedelta(minutes=30)
+    stuck_files = FileUpload.objects.filter(status='processing', updated_at__lt=stuck_threshold)
+
+    if not stuck_files.exists():
+        logger.info("[RETRY-TASK] No stuck files found.")
+        return
+
+    logger.warning(f"[RETRY-TASK] Retrying {stuck_files.count()} stuck file(s)...")
+
+    for file in stuck_files:
+        logger.warning(f"[RETRY-TASK] Retrying file ID: {file.fileId}")
+        process_csv_file.delay(str(file.fileId))

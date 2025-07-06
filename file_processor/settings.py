@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import environ
+from celery.schedules import crontab
+
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -56,6 +58,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'django_celery_results',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -175,6 +178,16 @@ CELERY_BROKER_URL = 'amqp://guest:guest@rabbitmq:5672/'
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+# Celery Beat (Periodic Tasks)
+CELERY_BEAT_SCHEDULE = {
+    'retry-stuck-files-every-10-mins': {
+        'task': 'retry_stuck_files',
+        'schedule': timedelta(minutes=10),
+    },
+}
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
 
 # Redis as Django cache backend
 CACHES = {
